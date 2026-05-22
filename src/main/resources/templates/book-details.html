@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${book.title} + ' - ReadMe'"></title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+</head>
+<body>
+<div class="container py-4">
+    <a href="/books" class="btn btn-secondary mb-3">← Назад к каталогу</a>
+
+    <div class="row">
+        <div class="col-md-4">
+            <img th:src="${book.coverUrl != null ? book.coverUrl : '/images/default-cover.jpg'}"
+                 class="img-fluid rounded shadow" alt="Обложка">
+        </div>
+        <div class="col-md-8">
+            <h1 th:text="${book.title}"></h1>
+            <h4 class="text-muted" th:text="${book.author}"></h4>
+            <div class="mt-3">
+                <span class="badge bg-secondary" th:text="'Жанр: ' + ${book.genre}"></span>
+                <span class="badge bg-secondary ms-2" th:text="'Год: ' + ${book.publishedYear}"></span>
+                <span class="badge bg-secondary ms-2" th:text="'Страниц: ' + ${book.pages}"></span>
+            </div>
+            <p class="mt-3" th:text="${book.description}"></p>
+
+            <div class="mt-4 d-flex gap-2">
+                <button class="btn btn-outline-success" data-status="WISHLIST">⭐ В избранное</button>
+                <button class="btn btn-outline-info" data-status="READ">✅ Прочитано</button>
+                <button class="btn btn-outline-secondary" id="removeRelationBtn">🗑️ Сбросить статус</button>
+            </div>
+            <div id="relationMessage" class="mt-2"></div>
+        </div>
+    </div>
+
+    <!-- Блок отзывов -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h3>Отзывы читателей</h3>
+            <div id="reviewsContainer">
+                <div id="reviewsList" class="mt-3"></div>
+                <div id="reviewsPagination" class="d-flex justify-content-center mt-3"></div>
+            </div>
+
+            <div class="mt-4 p-3 border rounded bg-light">
+                <h5>Оставить отзыв</h5>
+                <textarea id="reviewContent" class="form-control" rows="3" placeholder="Поделитесь мнением о книге..."></textarea>
+                <div class="mt-2">
+                    <label>Оценка: </label>
+                    <select id="reviewRating" class="form-select w-auto d-inline-block">
+                        <option value="">Без оценки</option>
+                        <option value="1">1 - Ужасно</option>
+                        <option value="2">2 - Плохо</option>
+                        <option value="3">3 - Нормально</option>
+                        <option value="4">4 - Хорошо</option>
+                        <option value="5">5 - Отлично</option>
+                    </select>
+                    <button id="submitReviewBtn" class="btn btn-primary ms-2">Отправить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<input type="hidden" id="bookId" th:value="${book.id}">
+
+<script>
+    // Получаем CSRF и ID книги
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+    const bookId = document.getElementById('bookId').value;
+
+    // ----- Управление статусом книги -----
+    async function setBookRelation(status) {
+        try {
+            const response = await fetch('/api/books/' + bookId + '/relation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    [csrfHeader]: csrfToken
+                },
+                body: JSON.stringify({ status: status })
+            });
+
+            if (response.status === 401) {
+                alert('Необходимо войти в систему');
+                window.location.href = '/login';
+                return;
+            }
+            if (!response.ok) throw new Error('Ошибка');
+
+            const data = await response.json();
+            const msgDiv = document.getElementById('relationMessage');
+            msgDiv.innerHTML = '<div class="alert alert-success alert-dismissible fade show">' + data.message +
+                '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+            setTimeout(() => msgDiv.innerHTML = '', 3000);
+            await loadCurrentStatus();
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Не удалось изменить статус книги');
+        }
+    }
+
+    async function loadCurrentStatus() {
+        try {
+            const response = await fetch('/api/books/' + bookId + '/relation', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (response.status === 401) return;
+            const data = await response.json();
+            const currentStatus = data.status;
+
+            document.querySelectorAll('[data-status]').forEach(btn => {
+                btn.classList.remove('btn-success', 'btn-info');
+                btn.classList.add('btn-outline-success', 'btn-outline-info');
+            });
+            if (currentStatus === 'WISHLIST') {
+                const btn = document.querySelector('[data-status="WISHLIST"]');
+                btn.classList.remove('btn-outline-success');
+                btn.classList.add('btn-success');
+            } else if (currentStatus === 'READ') {
+                const btn = document.querySelector('[data-status="READ"]');
+                btn.classList.remove('btn-outline-info');
+                btn.classList.add('btn-info');
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки статуса:', error);
+        }
+    }
+
+    // ----- Отзывы -----
+    let currentPage = 0;
+    const pageSize = 5;
+
+    async function loadReviews(page = 0) {
+        try {
+            const response = await fetch('/api/books/' + bookId + '/reviews?page=' + page + '&size=' + pageSize, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!response.ok) throw new Error('Ошибка загрузки');
+            const data = await response.json();
+            const reviews = data.content;
+            const totalPages = data.totalPages;
+            currentPage = page;
+
+            const container = document.getElementById('reviewsList');
+            if (!reviews.length) {
+                container.innerHTML = '<p class="text-muted">Пока нет отзывов. Будьте первым!</p>';
+            } else {
+                let html = '';
+                reviews.forEach(review => {
+                    const stars = review.rating ? '⭐'.repeat(review.rating) : '';
+                    const deleteBtn = review.username === document.querySelector('strong')?.innerText ?
+                        '<button class="btn btn-sm btn-outline-danger delete-review" data-id="' + review.id + '">Удалить</button>' : '';
+                    html += '<div class="border-bottom pb-2 mb-2" data-review-id="' + review.id + '">' +
+                        '<div class="d-flex justify-content-between"><strong>' + escapeHtml(review.username) + '</strong>' +
+                        '<small class="text-muted">' + new Date(review.createdAt).toLocaleString() + '</small></div>' +
+                        '<div>' + stars + '</div>' +
+                        '<p class="mt-1">' + escapeHtml(review.content) + '</p>' +
+                        deleteBtn +
+                        '</div>';
+                });
+                container.innerHTML = html;
+            }
+
+            const paginationDiv = document.getElementById('reviewsPagination');
+            if (totalPages > 1) {
+                let pagesHtml = '<ul class="pagination">';
+                for (let i = 0; i < totalPages; i++) {
+                    pagesHtml += '<li class="page-item ' + (i === currentPage ? 'active' : '') + '">' +
+                        '<button class="page-link page-review" data-page="' + i + '">' + (i+1) + '</button></li>';
+                }
+                pagesHtml += '</ul>';
+                paginationDiv.innerHTML = pagesHtml;
+                document.querySelectorAll('.page-review').forEach(btn => {
+                    btn.addEventListener('click', () => loadReviews(parseInt(btn.getAttribute('data-page'))));
+                });
+            } else {
+                paginationDiv.innerHTML = '';
+            }
+
+            document.querySelectorAll('.delete-review').forEach(btn => {
+                btn.addEventListener('click', () => deleteReview(btn.getAttribute('data-id')));
+            });
+        } catch (error) {
+            console.error('Ошибка загрузки отзывов:', error);
+        }
+    }
+
+    async function deleteReview(reviewId) {
+        if (!confirm('Удалить отзыв?')) return;
+        try {
+            const response = await fetch('/api/books/reviews/' + reviewId, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    [csrfHeader]: csrfToken
+                }
+            });
+            if (response.status === 401) {
+                alert('Необходима авторизация');
+                window.location.href = '/login';
+                return;
+            }
+            if (!response.ok) throw new Error('Не удалось удалить');
+            await loadReviews(currentPage);
+        } catch (error) {
+            console.error('Ошибка удаления:', error);
+            alert('Не удалось удалить отзыв');
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // Инициализация событий
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCurrentStatus();
+        loadReviews(0);
+
+        document.querySelectorAll('[data-status]').forEach(btn => {
+            btn.addEventListener('click', () => setBookRelation(btn.getAttribute('data-status')));
+        });
+        document.getElementById('removeRelationBtn').addEventListener('click', () => setBookRelation(null));
+
+        document.getElementById('submitReviewBtn').addEventListener('click', async () => {
+            const content = document.getElementById('reviewContent').value.trim();
+            if (!content) {
+                alert('Введите текст отзыва');
+                return;
+            }
+            const rating = document.getElementById('reviewRating').value;
+            const ratingValue = rating ? parseInt(rating) : null;
+
+            try {
+                const response = await fetch('/api/books/' + bookId + '/reviews', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        [csrfHeader]: csrfToken
+                    },
+                    body: JSON.stringify({ content: content, rating: ratingValue })
+                });
+                if (response.status === 401) {
+                    alert('Необходимо войти в систему');
+                    window.location.href = '/login';
+                    return;
+                }
+                if (!response.ok) throw new Error('Ошибка отправки');
+                document.getElementById('reviewContent').value = '';
+                document.getElementById('reviewRating').value = '';
+                await loadReviews(0);
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось отправить отзыв');
+            }
+        });
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

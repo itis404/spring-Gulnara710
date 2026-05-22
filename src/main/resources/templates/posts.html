@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Лента постов - ReadMe</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+</head>
+<body>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Лента постов</h1>
+        <a href="/posts/create" class="btn btn-primary">+ Новый пост</a>
+    </div>
+
+    <div th:if="${posts.isEmpty()}" class="alert alert-info">
+        Пока нет постов. Будьте первым!
+    </div>
+
+    <div th:each="post : ${posts}" class="card mb-4 shadow-sm" th:id="|post-${post.id}|">
+        <div class="card-body">
+            <h5 class="card-title" th:text="${post.title} ?: 'Без заголовка'"></h5>
+            <p class="card-text" th:text="${post.content}"></p>
+
+            <!-- Хештеги -->
+            <div class="mb-3" th:if="${not #lists.isEmpty(post.hashtags)}">
+                <span th:each="tag : ${post.hashtags}" class="badge bg-primary me-1 fs-6">
+                    #<span th:text="${tag.name}"></span>
+                </span>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-start">
+                <small class="text-muted">
+                    Автор: <strong th:text="${post.user.username}"></strong> •
+                    <span th:text="${#temporals.format(post.createdAt, 'dd.MM.yyyy HH:mm')}"></span>
+                </small>
+                <!-- Кнопки управления (только для автора) -->
+                <div sec:authorize="isAuthenticated()" th:if="${#authentication.name == post.user.username}">
+                    <a th:href="@{/posts/{id}/edit(id=${post.id})}" class="btn btn-sm btn-outline-secondary me-1">✏️</a>
+                    <form th:action="@{/posts/{id}/delete(id=${post.id})}" method="post" style="display: inline;">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить пост?')">🗑️</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Лайки/дизлайки -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="d-flex gap-3">
+                    <button class="btn btn-sm btn-outline-primary like-btn" th:data-post-id="${post.id}">👍 Лайк</button>
+                    <span class="badge bg-secondary likes-count" th:id="|likes-count-${post.id}|">0</span>
+                    <button class="btn btn-sm btn-outline-danger dislike-btn" th:data-post-id="${post.id}">👎 Дизлайк</button>
+                    <span class="badge bg-secondary dislikes-count" th:id="|dislikes-count-${post.id}|">0</span>
+                </div>
+                <button class="btn btn-sm btn-outline-info comment-toggle" th:data-post-id="${post.id}">💬 Комментарии</button>
+            </div>
+
+            <!-- Комментарии -->
+            <div th:id="|comments-block-${post.id}|" class="mt-3 d-none">
+                <div class="border-top pt-2">
+                    <div class="comment-list" th:id="|comment-list-${post.id}|"></div>
+                    <div class="input-group mt-2">
+                        <input type="text" class="form-control comment-input" th:id="|comment-input-${post.id}|" placeholder="Написать комментарий...">
+                        <button class="btn btn-primary comment-submit" th:data-post-id="${post.id}">Отправить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
+    async function sendRequest(url, method, body) {
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+        if (csrfToken && csrfHeader) headers[csrfHeader] = csrfToken;
+        const response = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : null });
+        if (!response.ok) {
+            if (response.status === 401) {
+                alert('Необходимо войти в систему');
+                window.location.href = '/login';
+                return Promise.reject(new Error('Unauthorized'));
+            }
+            const errorText = await response.text();
+            let errorMessage = errorText;
+            try { const errorJson = JSON.parse(errorText); errorMessage = errorJson.error || errorJson.message || errorText; } catch (e) {}
+            throw new Error(errorMessage);
+        }
+        return response.json();
+    }
+
+    function handleReaction(postId, type) {
+        sendRequest(`/api/posts/${postId}/reactions`, 'POST', { type })
+            .then(data => {
+                document.getElementById(`likes-count-${postId}`).innerText = data.likesCount;
+                document.getElementById(`dislikes-count-${postId}`).innerText = data.dislikesCount;
+            })
+            .catch(error => console.error('Ошибка реакции:', error));
+    }
+
+    async function loadComments(postId) {
+        try {
+            const comments = await sendRequest(`/api/posts/${postId}/comments`, 'GET');
+            const container = document.getElementById(`comment-list-${postId}`);
+            if (!container) return;
+            container.innerHTML = comments.map(c => `
+                <div class="border-bottom pb-2 mb-2">
+                    <strong>${escapeHtml(c.username)}</strong>: ${escapeHtml(c.content)}
+                    <small class="text-muted">${new Date(c.createdAt).toLocaleString()}</small>
+                </div>
+            `).join('');
+        } catch (error) { console.error('Ошибка загрузки комментариев:', error); }
+    }
+
+    async function addComment(postId, content) {
+        if (!content.trim()) return;
+        try {
+            await sendRequest(`/api/posts/${postId}/comments`, 'POST', { content });
+            await loadComments(postId);
+            document.getElementById(`comment-input-${postId}`).value = '';
+        } catch (error) { console.error('Ошибка отправки комментария:', error); }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : m === '<' ? '&lt;' : '&gt;');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.like-btn').forEach(btn =>
+            btn.addEventListener('click', () => handleReaction(btn.dataset.postId, 'LIKE')));
+        document.querySelectorAll('.dislike-btn').forEach(btn =>
+            btn.addEventListener('click', () => handleReaction(btn.dataset.postId, 'DISLIKE')));
+        document.querySelectorAll('.comment-toggle').forEach(btn =>
+            btn.addEventListener('click', async () => {
+                const block = document.getElementById(`comments-block-${btn.dataset.postId}`);
+                if (block.classList.contains('d-none')) {
+                    block.classList.remove('d-none');
+                    await loadComments(btn.dataset.postId);
+                } else block.classList.add('d-none');
+            }));
+        document.querySelectorAll('.comment-submit').forEach(btn =>
+            btn.addEventListener('click', () => {
+                const postId = btn.dataset.postId;
+                const input = document.getElementById(`comment-input-${postId}`);
+                if (input) addComment(postId, input.value);
+            }));
+    });
+</script>
+</body>
+</html>

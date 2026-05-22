@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: readme-postgres
+    environment:
+      POSTGRES_DB: readme_db
+      POSTGRES_USER: readme_user
+      POSTGRES_PASSWORD: readme_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - readme-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: readme-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - readme-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  readme-net:
+    driver: bridge
