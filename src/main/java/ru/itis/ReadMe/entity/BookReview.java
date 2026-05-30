@@ -24,7 +24,7 @@ public class BookReview implements Serializable {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    private Integer rating; // 1-5, опционально
+    private Integer rating;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

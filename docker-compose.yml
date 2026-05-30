@@ -23,6 +23,23 @@ services:
     networks:
       - readme-net
 
+  app:
+    build: .
+    container_name: readme-app
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/readme_db
+      SPRING_DATASOURCE_USERNAME: readme_user
+      SPRING_DATASOURCE_PASSWORD: readme_pass
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - readme-net
+
 volumes:
   postgres_data:
   redis_data:

@@ -16,7 +16,6 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // Создаём админа, если его нет
         if (userRepository.findByUsername("admin").isEmpty()) {
             UserEntity admin = UserEntity.builder()
                     .username("admin")
@@ -25,7 +24,7 @@ public class DataInitializer implements CommandLineRunner {
                     .role(UserEntity.Role.ROLE_ADMIN)
                     .build();
             userRepository.save(admin);
-            System.out.println("✅ Админ создан: login=admin, password=admin123");
+            System.out.println("Админ создан: login=admin, password=admin123");
         } else {
             System.out.println("Админ уже существует");
         }

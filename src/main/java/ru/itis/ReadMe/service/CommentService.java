@@ -57,4 +57,14 @@ public class CommentService {
                 comment.getCreatedAt()
         );
     }
+
+    public CommentEntity findById(UUID id) {
+        return commentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Комментарий не найден"));
+    }
+
+    @Transactional
+    public void deleteComment(UUID id) {
+        commentRepository.deleteById(id);
+    }
 }

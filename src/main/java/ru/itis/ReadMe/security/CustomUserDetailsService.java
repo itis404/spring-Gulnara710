@@ -19,13 +19,13 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         UserEntity user = userRepository.findByUsername(username)
-                .or(() -> userRepository.findByEmail(username)) // чтобы можно было заходить и по email
+                .or(() -> userRepository.findByEmail(username))
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден: " + username));
 
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getUsername())
                 .password(user.getPassword())
-                .authorities(user.getRole().name())           // ROLE_USER или ROLE_ADMIN
+                .authorities(user.getRole().name())
                 .build();
     }
 }

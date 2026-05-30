@@ -7,9 +7,11 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import ru.itis.ReadMe.dto.CommentRequest;
 import ru.itis.ReadMe.dto.CommentResponse;
+import ru.itis.ReadMe.entity.CommentEntity;
 import ru.itis.ReadMe.service.CommentService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -34,5 +36,21 @@ public class CommentRestController {
                 request.getContent(),
                 userDetails.getUsername()
         ));
+    }
+
+    @DeleteMapping("/{commentId}")
+    public ResponseEntity<?> deleteComment(@PathVariable UUID commentId,
+                                           @AuthenticationPrincipal UserDetails userDetails) {
+        CommentEntity comment = commentService.findById(commentId);
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isAuthor = comment.getUser().getUsername().equals(userDetails.getUsername());
+
+        if (!isAuthor && !isAdmin) {
+            return ResponseEntity.status(403).body(Map.of("error", "Нет прав на удаление"));
+        }
+
+        commentService.deleteComment(commentId);
+        return ResponseEntity.ok().build();
     }
 }

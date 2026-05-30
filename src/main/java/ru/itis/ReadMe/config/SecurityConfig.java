@@ -29,26 +29,16 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        // Публичный доступ
-                        .requestMatchers("/", "/register", "/login",
-                                "/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
-
-                        // Лента — публичная (все могут смотреть)
-                        .requestMatchers("/posts").permitAll()
-
-                        // Создание и управление постами — только авторизованные
-                        .requestMatchers("/posts/create", "/posts").authenticated()
-
-                        // Админка
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-
-                        // Всё остальное требует авторизации
+                        .requestMatchers("/", "/register", "/login", "/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
+                        .requestMatchers("/posts", "/books", "/books/**").permitAll()
+                        .requestMatchers("/posts/create", "/my-books", "/my-discussions", "/my-suggestions", "/suggest-book").authenticated()
+                        .requestMatchers("/admin/**", "/admin/suggestions/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
                         .loginProcessingUrl("/login")
-                        .defaultSuccessUrl("/posts", true)   // После входа — сразу в ленту
+                        .defaultSuccessUrl("/posts", true)
                         .failureUrl("/login?error=true")
                         .permitAll()
                 )
@@ -57,7 +47,6 @@ public class SecurityConfig {
                         .logoutSuccessUrl("/login?logout=true")
                         .permitAll()
                 )
-                // НАСТРОЙКА ДЛЯ REST API
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
                             if ("XMLHttpRequest".equals(request.getHeader("X-Requested-With"))) {
@@ -78,8 +67,6 @@ public class SecurityConfig {
                             }
                         })
                 )
-//                .csrf(csrf -> csrf.disable()); // отключено только на время разработки
-
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"));
 
         return http.build();

@@ -14,7 +14,6 @@ public interface HashtagRepository extends JpaRepository<HashtagEntity, UUID> {
 
     Optional<HashtagEntity> findByNameIgnoreCase(String name);
 
-    // Исправленный метод 1
     @Query("SELECT p, COUNT(r) as likeCount " +
             "FROM PostEntity p " +
             "JOIN p.hashtags h " +
@@ -24,7 +23,6 @@ public interface HashtagRepository extends JpaRepository<HashtagEntity, UUID> {
             "ORDER BY likeCount DESC")
     List<Object[]> findPostsByHashtagsOrderByLikes(@Param("hashtags") List<String> hashtags);
 
-    // Исправленный метод 2 (subselect) — тоже исправляем имя сущности
     @Query(value = """
         SELECT h.name, COUNT(p.id) as cnt 
         FROM hashtag h 

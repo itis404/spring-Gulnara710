@@ -66,4 +66,8 @@ public class BookReviewService {
                 review.getCreatedAt()
         );
     }
+
+    public Double getAverageRating(UUID bookId) {
+        return reviewRepository.getAverageRatingByBookId(bookId);
+    }
 }

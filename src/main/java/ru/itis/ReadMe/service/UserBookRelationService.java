@@ -38,17 +38,14 @@ public class UserBookRelationService {
         if (existing.isPresent()) {
             UserBookRelation relation = existing.get();
             if (status == null) {
-                // удаляем связь
                 relationRepository.delete(relation);
                 return new BookRelationResponse(null, "Статус сброшен");
             } else {
-                // обновляем статус
                 relation.setStatus(status);
                 relationRepository.save(relation);
                 return new BookRelationResponse(status.name(), "Статус обновлён");
             }
         } else if (status != null) {
-            // создаём новую связь
             UserBookRelation relation = UserBookRelation.builder()
                     .user(user)
                     .book(book)

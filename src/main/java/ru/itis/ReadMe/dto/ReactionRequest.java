@@ -4,5 +4,5 @@ import lombok.Data;
 
 @Data
 public class ReactionRequest {
-    private String type; // "LIKE" или "DISLIKE"
+    private String type;
 }

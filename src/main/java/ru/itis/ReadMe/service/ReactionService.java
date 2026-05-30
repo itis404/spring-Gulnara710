@@ -2,6 +2,7 @@ package ru.itis.ReadMe.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.itis.ReadMe.dto.ReactionResponse;
@@ -25,6 +26,7 @@ public class ReactionService {
     private final UserRepository userRepository;
 
     @Transactional
+    @CacheEvict(value = {"posts", "postDtos"}, allEntries = true, beforeInvocation = true)
     public ReactionResponse addReaction(UUID postId, String type, String username) {
         PostEntity post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("Пост не найден"));

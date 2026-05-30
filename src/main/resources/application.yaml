@@ -3,9 +3,9 @@ spring:
     name: ReadMe
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/readme_db
-    username: readme_user
-    password: readme_pass
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/readme_db}
+    username: ${SPRING_DATASOURCE_USERNAME:readme_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:readme_pass}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -21,8 +21,8 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
       timeout: 2000ms
       lettuce:
         pool:
@@ -32,7 +32,7 @@ spring:
   cache:
     type: redis
     redis:
-      time-to-live: 600000   # 10 минут
+      time-to-live: 600000
       cache-null-values: false
 
   thymeleaf:
@@ -49,7 +49,7 @@ logging:
     max-history: 30
 
 server:
-  port: 8081
+  port: 8082
   error:
     include-message: always
     include-binding-errors: always
@@ -57,9 +57,9 @@ server:
 app:
   google-books:
     api-url: https://www.googleapis.com/books/v1/volumes
-    api-key: AIzaSyALS-1fYWqBc9pIkLtWFqoBaFCMIcSPTsY
+    api-key: ${GOOGLE_BOOKS_API_KEY:AIzaSyALS-1fYWqBc9pIkLtWFqoBaFCMIcSPTsY}
   github:
     oauth:
       client-id: ${GITHUB_CLIENT_ID:your_client_id_here}
       client-secret: ${GITHUB_CLIENT_SECRET:your_secret_here}
-      redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:8080/oauth2/github/callback}
+      redirect-uri: ${GITHUB_REDIRECT_URI:http://localhost:8081/oauth2/github/callback}

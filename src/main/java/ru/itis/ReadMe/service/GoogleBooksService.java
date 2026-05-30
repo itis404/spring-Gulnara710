@@ -7,7 +7,10 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import ru.itis.ReadMe.entity.BookEntity;
 import ru.itis.ReadMe.repository.BookRepository;
@@ -25,6 +28,7 @@ import java.util.List;
 public class GoogleBooksService {
 
     private final BookRepository bookRepository;
+    private final BookService bookService;
     private final OkHttpClient httpClient = new OkHttpClient();
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -91,7 +95,21 @@ public class GoogleBooksService {
         }
     }
 
-    public BookEntity importBookToDatabase(BookEntity book) {
+    @CacheEvict(value = {"books", "book"}, allEntries = true)
+    public BookEntity save(BookEntity book) {
         return bookRepository.save(book);
+    }
+
+    @CacheEvict(value = {"books", "book"}, allEntries = true)
+    public BookEntity importBookToDatabase(BookEntity book) {
+        return bookService.save(book);
+    }
+
+    @Autowired
+    private CacheManager cacheManager;
+
+    public void evictAllBookCaches() {
+        cacheManager.getCache("books").clear();
+        cacheManager.getCache("book").clear();
     }
 }

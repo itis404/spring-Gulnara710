@@ -2,6 +2,8 @@ package ru.itis.ReadMe.service;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import ru.itis.ReadMe.converter.PostConverter;
+import ru.itis.ReadMe.dto.PostDto;
 import ru.itis.ReadMe.entity.HashtagEntity;
 import ru.itis.ReadMe.entity.PostEntity;
 import ru.itis.ReadMe.repository.HashtagRepository;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,9 +21,10 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final HashtagRepository hashtagRepository;
+    private final PostConverter postConverter;
 
     @Transactional
-    @CacheEvict(value = "posts", allEntries = true)
+    @CacheEvict(value = {"posts", "postDtos"}, allEntries = true, beforeInvocation = true)
     public PostEntity createPost(PostEntity post, String content, String hashtagsInput) {
         post.setContent(content);
         post.setHashtags(parseHashtags(hashtagsInput));
@@ -56,22 +60,25 @@ public class PostService {
         return postRepository.findAllWithHashtagsAndUser();
     }
 
-    @CacheEvict(value = "posts", allEntries = true)
+    @Cacheable(value = "postDtos")
+    public List<PostDto> getAllPostDtos() {
+        return getAllPosts().stream()
+                .map(postConverter::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @CacheEvict(value = {"posts", "postDtos"}, allEntries = true)
     @Transactional
     public PostEntity updatePost(PostEntity post, String hashtagsInput) {
         post.setHashtags(parseHashtags(hashtagsInput));
         return postRepository.save(post);
     }
 
-    @CacheEvict(value = "posts", allEntries = true)
+    @CacheEvict(value = {"posts", "postDtos"}, allEntries = true)
     @Transactional
     public void deletePost(UUID id) {
         postRepository.deleteById(id);
     }
-
-//    public Optional<PostEntity> findById(UUID id) {
-//        return postRepository.findById(id);
-//    }
 
     public Optional<PostEntity> findById(UUID id) {
         return postRepository.findByIdWithHashtags(id);

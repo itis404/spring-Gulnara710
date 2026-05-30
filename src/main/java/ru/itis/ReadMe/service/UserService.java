@@ -15,7 +15,7 @@ import java.util.UUID;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;   // Spring сам подставит
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public UserEntity registerUser(String username, String email, String rawPassword) {

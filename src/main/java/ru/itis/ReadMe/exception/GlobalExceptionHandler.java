@@ -15,17 +15,13 @@ import java.time.LocalDateTime;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Обработка всех исключений
     @ExceptionHandler(Exception.class)
     public Object handleAllExceptions(Exception ex, HttpServletRequest request) {
-        // Логируем стектрейс
         log.error("Exception occurred: ", ex);
 
-        // Определяем, AJAX ли запрос
         boolean isAjax = "XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
 
         if (isAjax) {
-            // Для AJAX возвращаем JSON с ошибкой
             ErrorResponse errorResponse = new ErrorResponse(
                     "Внутренняя ошибка сервера",
                     HttpStatus.INTERNAL_SERVER_ERROR.value(),
@@ -34,7 +30,6 @@ public class GlobalExceptionHandler {
             );
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         } else {
-            // Для обычного запроса – страница ошибки
             ModelAndView mav = new ModelAndView("error");
             mav.addObject("message", "Произошла непредвиденная ошибка. Пожалуйста, попробуйте позже.");
             mav.addObject("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
@@ -43,7 +38,6 @@ public class GlobalExceptionHandler {
         }
     }
 
-    // Можно добавить обработку специфических исключений, например:
     @ExceptionHandler(ResourceNotFoundException.class)
     public Object handleNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
         log.warn("Resource not found: ", ex);

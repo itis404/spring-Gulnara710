@@ -38,7 +38,6 @@ public class BookEntity implements Serializable {
     private Integer publishedYear;
     private String coverUrl;
 
-    // Связи
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PostEntity> posts = new HashSet<>();
 
