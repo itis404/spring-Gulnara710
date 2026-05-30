@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: readme-postgres
+    environment:
+      POSTGRES_DB: readme_db
+      POSTGRES_USER: readme_user
+      POSTGRES_PASSWORD: readme_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - readme-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: readme-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - readme-net
+
+  app:
+    build: .
+    container_name: readme-app
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/readme_db
+      SPRING_DATASOURCE_USERNAME: readme_user
+      SPRING_DATASOURCE_PASSWORD: readme_pass
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - readme-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  readme-net:
+    driver: bridge
